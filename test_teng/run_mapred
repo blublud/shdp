@@ -1,0 +1,9 @@
+hadoop fs -rmr /output/
+
+hadoop jar /etc/hadoop/hadoop-1.1.2/contrib/streaming/hadoop-streaming-1.1.2.jar \
+	-input /input/occupy_la.csv \
+	-output /output \
+	-file /home/pdp/dev/shdp/test_teng/hadoop/comment_cluster_map.py \
+	-file /home/pdp/dev/shdp/test_teng/hadoop/comment_cluster_red.py \
+	-mapper 'comment_cluster_map.py' \
+	-jobconf mapred.reduce.tasks=1
