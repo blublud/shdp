@@ -1,0 +1,109 @@
+'''
+Created on Jun 14, 2013
+
+@author: fan wei fang
+'''
+import csv
+from Jama import Matrix
+from Jama import EigenvalueDecomposition
+
+from net.sf.javaml.core import DenseInstance
+from net.sf.javaml.core import DefaultDataset
+from net.sf.javaml.clustering import KMeans
+
+PostList = open('data/PostListForOccupyLA_PostMoreThan35Comments.txt','r')
+fileLike = open('data/occupyla_int_withUnixTime_sorted_addpostID.csv','r')
+
+#retrieve like data
+#build like graph
+#sum by row => diag => subtract like graph
+
+def getLikes(postID):
+    
+    rowsLike = csv.DictReader(fileLike,['PostID','CommentID','UnixSystemTime','LikeFromID','LikeToID'])
+    
+    likes =[]
+    for rowLike in rowsLike:
+        if (rowLike['PostID']==postID):
+            likeFrom = rowLike['LikeFromID']
+            likeTo = rowLike['LikeToID']
+            likes.append((likeFrom, likeTo))
+
+    return likes
+
+def buildLikeMatrix(postID):
+    
+    likes = getLikes(postID)
+    matLike = Matrix(len(likes), len(likes))
+    
+    mapIDSeq ={}
+    for like in likes:
+        idFrom = like[0]
+        if (idFrom in mapIDSeq): 
+            seqFrom = mapIDSeq[idFrom]
+        else: 
+            seqFrom = len(mapIDSeq)
+            mapIDSeq[idFrom] = seqFrom          
+        
+        idTo = like[1]
+        if (idTo in mapIDSeq): 
+            seqTo = mapIDSeq[idTo]
+        else:
+            seqTo =  len(mapIDSeq)
+            mapIDSeq[idTo] = seqTo
+        
+        matEle = matLike.get(seqFrom,seqTo)
+        matLike.set(seqFrom, seqTo, 1 + matEle)         
+    
+    lenMatLike = len(mapIDSeq)
+    matLike = matLike.getMatrix(range(lenMatLike), range(lenMatLike))
+    
+    return mapIDSeq, matLike
+
+def doKMeansByJama(vectors):    
+    
+    arrDat = vectors.getArray()
+    datSet = DefaultDataset() 
+    
+    for i in range(len(arrDat)):
+        instance = DenseInstance(arrDat[i])
+        instance.setClassValue(i)
+        datSet.add(instance)
+    
+    kmeans = KMeans(2)
+    clusters = kmeans.cluster(datSet)
+    
+    for c in clusters:
+        print 'cluster'
+        for i in range(len(c)):
+            print c.classValue(i)
+    
+def doRank(postID):
+    
+    mapIdSeq, matLike = buildLikeMatrix(postID)
+    
+    dimMatLike = matLike.getRowDimension()
+    vectorSumByRow = matLike.times(Matrix(dimMatLike, 1, 1.0))
+    vectorSumByRow = matLike.getColumnPackedCopy()
+    
+    for i in range(dimMatLike):
+        matLike.set(i, i, vectorSumByRow[i])
+
+    decomposeEig = EigenvalueDecomposition(matLike)    
+    valsEig = decomposeEig.getRealEigenvalues()
+    vectorsEig = decomposeEig.getV()
+    vectorsEig = vectorsEig.transpose()
+    
+    idxSelectedEigs = []
+    for eigVal in sorted(valsEig):
+        if eigVal > 1e-10:
+            idxSelectedEigs.append(valsEig.index(eigVal))
+            if len(idxSelectedEigs) == 2: break
+    
+    eigVectorsSelected = vectorsEig.getMatrix(idxSelectedEigs, 0, vectorsEig.getColumnDimension()-1)    
+    eigVectorsSelected = eigVectorsSelected.transpose()
+    
+    doKMeansByJama(eigVectorsSelected)
+
+doRank('282370021775789_291368864209238')
+print 'abc' 
