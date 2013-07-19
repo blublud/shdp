@@ -1,0 +1,18 @@
+FileList:
+comment_cluster_map.py: Hadoop Mapper
+comment_cluster_red.py: Hadoop Reducer
+
+run_* script to run MapReduce jobs
+
+The purpose of Teng's code:
+
+Building like-graph from edges given in the input .cvs file.
+Find the best clustering (into 2 clusters) of the like-graph.
+
+Porting to MapReduce framework:
++Map job: read and emit each entry (each edge) in the cvs input file (stored in HDFS).
+
++Reduce job: 
+	+Build the graph for each post (note that all edges of a graph will be reduced to a single reducer)
+	+Do clustering
+	+Output to HDFS
